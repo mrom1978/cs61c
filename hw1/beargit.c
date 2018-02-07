@@ -316,3 +316,4 @@ int beargit_checkout(const char* arg, int new_branch) {
   // Check out the actual commit.
   return checkout_commit(branch_head_commit_id);
 }
+

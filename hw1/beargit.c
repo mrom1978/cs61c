@@ -7,6 +7,7 @@
 #include "beargit.h"
 #include "util.h"
 
+
 /* Implementation Notes:
  *
  * - Functions return 0 if successful, 1 if there is an error.
@@ -46,7 +47,7 @@ int beargit_init(void) {
   FILE* fbranches = fopen(".beargit/.branches", "w");
   fprintf(fbranches, "%s\n", "master");
   fclose(fbranches);
-   
+
   write_string_to_file(".beargit/.prev", "0000000000000000000000000000000000000000");
   write_string_to_file(".beargit/.current_branch", "master");
 
@@ -55,7 +56,7 @@ int beargit_init(void) {
 
 
 /* beargit add <filename>
- * 
+ *
  * - Append filename to list in .beargit/.index if it isn't in there yet
  *
  * Possible errors (to stderr):
@@ -94,7 +95,7 @@ int beargit_add(const char* filename) {
 
 
 /* beargit rm <filename>
- * 
+ *
  * See "Step 2" in the homework 1 spec.
  *
  */
@@ -162,7 +163,7 @@ int beargit_log() {
 }
 
 // ---------------------------------------
-// HOMEWORK 2 
+// HOMEWORK 2
 // ---------------------------------------
 
 // This adds a check to beargit_commit that ensures we are on the HEAD of a branch.
@@ -295,7 +296,7 @@ int beargit_checkout(const char* arg, int new_branch) {
   }
 
   // File for the branch we are changing into.
-  char* branch_file = ".beargit/.branch_"; 
+  char* branch_file = ".beargit/.branch_";
   strcat(branch_file, branch_name);
 
   // Update the branch file if new branch is created (now it can't go wrong anymore)
@@ -303,7 +304,7 @@ int beargit_checkout(const char* arg, int new_branch) {
     FILE* fbranches = fopen(".beargit/.branches", "a");
     fprintf(fbranches, "%s\n", branch_name);
     fclose(fbranches);
-    fs_cp(".beargit/.prev", branch_file); 
+    fs_cp(".beargit/.prev", branch_file);
   }
 
   write_string_to_file(".beargit/.current_branch", branch_name);

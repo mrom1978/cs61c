@@ -6,7 +6,7 @@
 
 #include "beargit.h"
 #include "util.h"
-
+const char* digits = "61c";
 /* Implementation Notes:
  *
  * - Functions return 0 if successful, 1 if there is an error.
@@ -43,7 +43,13 @@ int beargit_init(void) {
   FILE* findex = fopen(".beargit/.index", "w");
   fclose(findex);
 
+  FILE* fbranches = fopen(".beargit/.branches", "w");
+  fprintf(fbranches, "%s\n", "master");
+  fclose(fbranches);
+
   write_string_to_file(".beargit/.prev", "0000000000000000000000000000000000000000");
+  write_string_to_file(".beargit/.current_branch", "master");
+
   return 0;
 }
 
@@ -62,6 +68,7 @@ int beargit_init(void) {
 int beargit_add(const char* filename) {
   FILE* findex = fopen(".beargit/.index", "r");
   FILE *fnewindex = fopen(".beargit/.newindex", "w");
+  //FILE *curren = fopen(".beargit/.branch_master/.index", "w");
 
   char line[FILENAME_SIZE];
   while(fgets(line, sizeof(line), findex)) {
@@ -75,13 +82,22 @@ int beargit_add(const char* filename) {
     }
 
     fprintf(fnewindex, "%s\n", line);
+    //fprintf(curren, "%s\n", line);
   }
 
   fprintf(fnewindex, "%s\n", filename);
   fclose(findex);
   fclose(fnewindex);
+  //fclose(curren);
 
   fs_mv(".beargit/.newindex", ".beargit/.index");
+
+  char current_branch[BRANCHNAME_SIZE];
+  read_string_from_file(".beargit/.current_branch", current_branch, BRANCHNAME_SIZE);
+
+  char current_branch_index[BRANCHNAME_SIZE + sizeof(".beargit/.index_")];
+  int n = sprintf(current_branch_index, ".beargit/.index_%s", current_branch);
+  fs_cp(".beargit/.index", current_branch_index);
 
   return 0;
 }
@@ -161,14 +177,15 @@ int power(int a, int b){
 int charToInt(char* commit_id){
   int s = 0;
   int i;
-  for(i = 0; i < COMMIT_ID_SIZE; i++){
-    if(commit_id[COMMIT_ID_SIZE - 2 - i] == '6'){
-      s += 1 * power(4, i);
-    }else if(commit_id[COMMIT_ID_SIZE - 2 - i] == '1'){
-      s += 2 * power(4, i);;
-    }else if(commit_id[COMMIT_ID_SIZE - 2 - i] == 'c'){
-      s += 3 * power(4, i);;
-    }else if(commit_id[COMMIT_ID_SIZE - 2 - i] == '0'){
+  int length = strlen(commit_id);
+  for(i = 0; i < length; i++){
+    if(commit_id[length - 1 - i] == '6'){
+      s = 1 * power(4, i);
+    }else if(commit_id[length - 1 - i] == '1'){
+      s += 2 * power(4, i);
+    }else if(commit_id[length - 1 - i] == 'c'){
+      s += 3 * power(4, i);
+    }else if(commit_id[length - 1 - i] == '0'){
       s = s;
     }
   }
@@ -201,47 +218,57 @@ int charToInt(char* commit_id){
 
 void next_commit_id_hw1(char* commit_id) {
   /* COMPLETE THE REST */
+  //printf("fourth %s\n", commit_id);
+  //printf("fifth %s\n", commit_id - 10);
   int sum = 0;
   sum = charToInt(commit_id);
-
+  //printf("sum is %d\n", sum);
   int next = sum + 1;
   int temp;
-  char start[COMMIT_ID_SIZE];
+  //int length = 30;
+  //char start[COMMIT_ID_SIZE];
   //start = intToChar(next);
-  start[COMMIT_ID_SIZE - 1] = '\0';
+  commit_id[30] = '\0';
   int j;
-  for(j = 0; j < COMMIT_ID_SIZE - 1; j++){
+  for(j = 0; j < 30; j++){
     temp = next & 3;
-
+    //printf("pin %d\n", temp);
     if(temp == 1){
-      start[COMMIT_ID_SIZE - 2 -j] = '6';
+      commit_id[29 - j] = '6';
     }else if(temp == 2){
-      start[COMMIT_ID_SIZE - 2 - j] = '1';
+      commit_id[29 - j] = '1';
     }else if(temp == 3){
-      start[COMMIT_ID_SIZE - 2 - j] = 'c';
+      commit_id[29 - j] = 'c';
     }else if(temp == 0){
-      start[COMMIT_ID_SIZE - 2 -j] = '0';
+      commit_id[COMMIT_ID_SIZE - 2 - j - BRANCHNAME_SIZE] = '0';
     }
     next = next >> 2;
   }
 
-  commit_id = start;
-  write_string_to_file(".beargit/.prev", commit_id);
+  //("sixth %s\n", commit_id);
+  //read_string_from_file(".beargit/.prev", start, COMMIT_ID_SIZE);
+  //printf("yomon %s\n", start);
 
 }
 
 int beargit_commit_hw1(const char* msg) {
+
   if (!is_commit_msg_ok(msg)) {
     fprintf(stderr, "ERROR: Message must contain \"%s\"\n", go_bears);
     return 1;
   }
-
+  //int length = strlen(msg);
   char commit_id[COMMIT_ID_SIZE];
+  char previd[COMMIT_ID_SIZE];
   read_string_from_file(".beargit/.prev", commit_id, COMMIT_ID_SIZE);
+  read_string_from_file(".beargit/.prev", previd, COMMIT_ID_SIZE);
+
   next_commit_id(commit_id);
 
   /* COMPLETE THE REST */
-  read_string_from_file(".beargit/.prev", commit_id, COMMIT_ID_SIZE);
+  //commit_id = commit_id - 10;
+  //printf("mm %s\n", commit_id);
+  //read_string_from_file(".beargit/.prev", commit_id, COMMIT_ID_SIZE);
   char buffer[FILENAME_SIZE];
   int n = sprintf(buffer, ".beargit/%s", commit_id);
   fs_mkdir(buffer);
@@ -253,12 +280,22 @@ int beargit_commit_hw1(const char* msg) {
   char buffera[FILENAME_SIZE];
   int x = sprintf(buffera, ".beargit/%s/.prev", commit_id);
   fs_cp(".beargit/.prev", buffera);
-
+  FILE* index = fopen(".beargit/.index", "r");
   char bufferb[FILENAME_SIZE];
-  int m = sprintf(bufferb, ".beargit/%s/.msg", commit_id);
-  write_string_to_file(bufferb, msg);
-  //read_string_from_file(bufferb, bufferr, 10000);
 
+  while(fgets(bufferb, sizeof(bufferb), index)){
+    strtok(bufferb, "\n");
+    //printf("what is this %s\n", bufferb);
+    char current_file_dir[COMMIT_ID_SIZE +25];
+    sprintf(current_file_dir, ".beargit/%s/%s", commit_id, bufferb);
+    fs_cp(bufferb, current_file_dir);
+  }
+  char mes[MSG_SIZE];
+  int m = sprintf(mes, ".beargit/%s/.msg", commit_id);
+  write_string_to_file(mes, msg);
+  fclose(index);
+  //read_string_from_file(bufferb, bufferr, 10000);
+  write_string_to_file(".beargit/.prev", commit_id);
   return 0;
 }
 
@@ -278,7 +315,7 @@ int beargit_status() {
   int count = 0;
   s = fgets(reading, FILENAME_SIZE, findex);
   printf("Tracked files: \n\n");
-  if(s == NULL){
+  if(strlen(reading) == 0){
     fprintf(stderr, "ERROR No files tracked\n");
     return 1;
   }
@@ -301,46 +338,31 @@ int beargit_status() {
 
 int beargit_log() {
   /* COMPLETE THE REST */
+  int n;
   char lastId[COMMIT_ID_SIZE];
-  FILE * prev = fopen(".beargit/.prev", "r");
-  char* s = fgets(lastId, COMMIT_ID_SIZE, prev);
-  int lastOne = charToInt(lastId);
+  read_string_from_file(".beargit/.prev", lastId, COMMIT_ID_SIZE);
 
-  if(lastOne == 0){
+  char current_commit_index[COMMIT_ID_SIZE + sizeof(".beargit/.index")];
+  n = sprintf(current_commit_index, ".beargit/%s", lastId);
+  //printf("hay %s & %s\n" , current_commit_index, lastId);
+  if(!fopen(current_commit_index, "r") || !strcmp(lastId, "0000000000000000000000000000000000000000")){
     fprintf(stderr, "ERROR: There are no commits");
     return 1;
   }
-  int i;
-  int n;
-  char start[COMMIT_ID_SIZE];
-  start[COMMIT_ID_SIZE - 1] = '\0';
+  //printf("yo %s\n", lastId);
   char msg[MSG_SIZE];
   char bufferMSG[COMMIT_ID_SIZE + sizeof(".beargit/.") + sizeof("/.msg")];
 
-  for(i = 1; i <= lastOne; i++){
-    int j;
-    int temp = i;
-    for(j = 0; j < COMMIT_ID_SIZE - 1; j++){
+  char *s;
 
-      int temp1 = temp & 3;
-
-      if(temp1 == 1){
-        start[COMMIT_ID_SIZE - 2 -j] = '6';
-      }else if(temp1 == 2){
-        start[COMMIT_ID_SIZE - 2 - j] = '1';
-      }else if(temp1 == 3){
-        start[COMMIT_ID_SIZE - 2 - j] = 'c';
-      }else if(temp1 == 0){
-        start[COMMIT_ID_SIZE - 2 -j] = '0';
-      }
-      temp = temp >> 2;
-    }
-
-    n = sprintf(bufferMSG, ".beargit/%s/.msg", start);
-    read_string_from_file(bufferMSG, msg, MSG_SIZE);
-    fprintf(stdout, "\ncommit %s\n\t%s\n\n", start, msg);
-
-  }
+  do{
+    strcat(current_commit_index, "/.msg");
+    read_string_from_file(current_commit_index, msg, MSG_SIZE);
+    fprintf(stdout, "\ncommit %s\n\t%s\n\n", lastId, msg);
+    sprintf(bufferMSG, ".beargit/%s/.prev", lastId);
+    read_string_from_file(bufferMSG, lastId, COMMIT_ID_SIZE);
+    sprintf(current_commit_index, ".beargit/%s", lastId);
+  }while(fopen(current_commit_index, "r") );
 
   return 0;
 }
@@ -362,7 +384,7 @@ int beargit_commit(const char* msg) {
   return beargit_commit_hw1(msg);
 }
 
-const char* digits = "61c";
+
 
 void next_commit_id(char* commit_id) {
   char current_branch[BRANCHNAME_SIZE];
@@ -380,6 +402,9 @@ void next_commit_id(char* commit_id) {
     n /= 3;
   }
 
+  //printf("this is branch %s\n", commit_id);
+  //printf("seocnd %s\n", commit_id + 10);
+  //printf("thris %s\n", commit_id);
   // Use next_commit_id to fill in the rest of the commit ID.
   next_commit_id_hw1(commit_id + COMMIT_ID_BRANCH_BYTES);
 }
@@ -440,19 +465,61 @@ int beargit_branch() {
 
 int checkout_commit(const char* commit_id) {
   /* COMPLETE THE REST */
+  FILE* findex = fopen(".beargit/.index", "w");
+  if(findex == NULL)
+    return 0;
+  char *s;
+  char reading[FILENAME_SIZE];
+  s = fgets(reading, FILENAME_SIZE, findex);
 
-  return 0;
+  char current_index[COMMIT_ID_SIZE + sizeof(".beargit/.index")];
+  char c[COMMIT_ID_SIZE];
+  strcpy(c, commit_id);
+  char current_branch[BRANCHNAME_SIZE];
+  read_string_from_file(".beargit/.current_branch", current_branch, BRANCHNAME_SIZE);
+  int n = get_branch_number(current_branch);
+  for (int i = 0; i < COMMIT_ID_BRANCH_BYTES; i++) {
+    // This translates the branch number into base 3 and substitutes 0 for
+    // 6, 1 for 1 and c for 2.
+    c[i] = digits[n%3];
+    n /= 3;
+  }
+
+  sprintf(current_index, ".beargit/%s/.index", c);
+  //read_string_from_file(current_index, current_index, 100);
+  //printf("chekc %s\n", current_index);
+  if(findex = fopen(current_index, "r")){
+    //fs_cp(current_index, ".beargit/.index");
+    s = fgets(reading, FILENAME_SIZE, findex);
+    while(s != NULL){
+      strtok(reading, "\n");
+      beargit_add(reading);
+      s = fgets(reading, FILENAME_SIZE, findex);
+    }
+  }
+  write_string_to_file(".beargit/.prev", c);
+
+  return 1;
 }
 
 int is_it_a_commit_id(const char* commit_id) {
-  /* COMPLETE THE REST */
+
+  if(strlen(commit_id) < COMMIT_ID_SIZE){
+    return 0;
+  }
+  for(int i = 0; i < COMMIT_ID_SIZE - 1; i++){
+    if(commit_id[i] != '6' || commit_id[i] != '1' || commit_id[i] != 'c' || commit_id[i] != '0'){
+      return 0;
+    }
+  }
   return 1;
 }
 
 int beargit_checkout(const char* arg, int new_branch) {
   // Get the current branch
+
   char current_branch[BRANCHNAME_SIZE];
-  read_string_from_file(".beargit/.current_branch", "current_branch", BRANCHNAME_SIZE);
+  read_string_from_file(".beargit/.current_branch", current_branch, BRANCHNAME_SIZE);//mistake 1 - remove double quotation marks from current_branch
 
   // If not detached, update the current branch by storing the current HEAD into that branch's file...
   // Even if we cancel later, this is still ok.
@@ -479,7 +546,8 @@ int beargit_checkout(const char* arg, int new_branch) {
   }
 
   // Just a better name, since we now know the argument is a branch name.
-  const char* branch_name = arg;
+  char branch_name[BRANCHNAME_SIZE];
+  strncpy(branch_name, arg, BRANCHNAME_SIZE);
 
   // Read branches file (giving us the HEAD commit id for that branch).
   int branch_exists = (get_branch_number(branch_name) >= 0);
@@ -488,13 +556,13 @@ int beargit_checkout(const char* arg, int new_branch) {
   if (!(!branch_exists || !new_branch)) {
     fprintf(stderr, "ERROR: A branch named %s already exists\n", branch_name);
     return 1;
-  } else if (!branch_exists && new_branch) {
+  } else if (!branch_exists && !new_branch) {//mistake 2 since new branch is true must be false
     fprintf(stderr, "ERROR: No branch %s exists\n", branch_name);
     return 1;
   }
 
   // File for the branch we are changing into.
-  char* branch_file = ".beargit/.branch_";
+  char branch_file[BRANCHNAME_SIZE] = ".beargit/.branch_";//mistake 3 instead of pointer change to array
   strcat(branch_file, branch_name);
 
   // Update the branch file if new branch is created (now it can't go wrong anymore)
@@ -514,4 +582,3 @@ int beargit_checkout(const char* arg, int new_branch) {
   // Check out the actual commit.
   return checkout_commit(branch_head_commit_id);
 }
-
